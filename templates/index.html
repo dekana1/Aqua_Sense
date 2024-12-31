@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset='UTF-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="{{ url_for('static', filename='js/plotly-latest.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery-3.7.1.min.js') }}"></script>
+    <style>
+        /* Base Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        /* Color Palette */
+        :root {
+            --primary-color: #4E73DF;
+            /* Soft Blue */
+            --secondary-color: #1CC88A;
+            /* Soft Green */
+            --accent-color: #F6C23E;
+            /* Yellow */
+            --danger-color: #E74A3B;
+            /* Red */
+            --light-bg: #FFFFFF;
+            /* White */
+            --dark-bg: #3A3F44;
+            /* Dark Gray */
+            --border-color: #ddd;
+            /* Border Color */
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .header {
+            text-align: center;
+            color: var(--primary-color);
+        }
+
+        .header .greetings {
+            font-size: 28px;
+            font-weight: 300;
+            color: var(--primary-color);
+        }
+
+        .header .reading-title {
+            font-size: 20px;
+            color: #555;
+            font-weight: 400;
+        }
+
+        /* Cards Layout */
+        #cards {
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            width: 100%;
+            flex-wrap: wrap;
+            padding: 0 20px;
+        }
+
+        .card {
+            background-color: var(--light-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            min-width: 180px;
+            flex-grow: 1;
+            max-width: 350px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h3 {
+            font-size: 18px;
+            color: #444;
+        }
+
+        .card p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .status-safe {
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .status-unsafe {
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+
+        /* Charts Layout */
+        #charts {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 0 20px;
+        }
+
+        .chart {
+            flex-grow: 1;
+            min-width: 45%;
+            background-color: var(--light-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .chart {
+                min-width: 100%;
+            }
+
+            #cards {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+    <title>Aqua-sense Dashboard</title>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <p class="greetings" id="greeting-message">Good Afternoon</p>
+            <p class="reading-title">Here's today's readings</p>
+        </div>
+
+        <div id="cards">
+            <div class="card" id="conductivity-card"></div>
+            <div class="card" id="turbidity-card"></div>
+        </div>
+
+        <div id="charts">
+            <div id="conductivity-chart" class="chart"></div>
+            <div id="turbidity-chart" class="chart"></div>
+        </div>
+    </div>
+
+    <script>
+        // Dynamic Greeting based on Time of Day
+        function updateGreeting() {
+            const now = new Date();
+            const hours = now.getHours();
+            let greetingMessage = 'Good Afternoon';
+
+            if (hours < 12) {
+                greetingMessage = 'Good Morning';
+            } else if (hours >= 12 && hours < 18) {
+                greetingMessage = 'Good Afternoon';
+            } else {
+                greetingMessage = 'Good Evening';
+            }
+
+            document.getElementById('greeting-message').innerText = greetingMessage;
+        }
+
+        // Function to populate a card with data
+        function populateCard(id, title, value, unit, threshold) {
+            const statusClass = value <= threshold ? 'status-safe' : 'status-unsafe';
+            const statusText = value <= threshold ? 'Safe' : 'Unsafe';
+
+            const cardHTML = `
+                    <h3>${title}</h3>
+                    <span>Current Value: ${value} ${unit}</span>
+                    <p class="${statusClass}">${statusText}</p>
+                `;
+            document.getElementById(`${id}-card`).innerHTML = cardHTML;
+        }
+
+        // Function to fetch sensor data and plot charts
+        function fetchSensorData() {
+            $.getJSON("/api/data/get", function (data) {
+                const times = data.map(point => point.time);
+                const conductivity = data.map(point => point.conductivity);
+                const turbidity = data.map(point => point.turbidity);
+
+                // Populate cards with the latest data
+                populateCard('conductivity', 'Conductivity', conductivity[conductivity.length - 1].toFixed(2), 'µS/cm', 500);
+                populateCard('turbidity', 'Turbidity', turbidity[turbidity.length - 1].toFixed(2), 'NTU', 5);
+
+                // Plot the Conductivity chart
+                Plotly.react('conductivity-chart', [{
+                    x: times,
+                    y: conductivity,
+                    type: 'line',
+                    name: 'Conductivity (µS/cm)',
+                    line: { color: '#1CC88A', width: 3 } // Directly set the color
+                }], {
+                    title: 'Conductivity Over Time',
+                    xaxis: { title: 'Time' },
+                    yaxis: { title: 'Conductivity (µS/cm)' },
+                    autosize: true
+                });
+
+                // Plot the Turbidity chart
+                Plotly.react('turbidity-chart', [{
+                    x: times,
+                    y: turbidity,
+                    type: 'line',
+                    name: 'Turbidity (NTU)',
+                    line: { color: '#F6C23E', width: 3 } // Directly set the color
+                }], {
+                    title: 'Turbidity Over Time',
+                    xaxis: { title: 'Time' },
+                    yaxis: { title: 'Turbidity (NTU)' },
+                    autosize: true
+                });
+            });
+        }
+
+        // Call functions on page load
+        updateGreeting();  // Set dynamic greeting
+        fetchSensorData(); // Fetch initial data
+        setInterval(fetchSensorData, 60000);  // Fetch data every minute
+    </script>
+</body>
+
+</html>
