@@ -185,7 +185,7 @@
         // Function to populate a card with data
         function populateCard(id, title, value, unit, threshold) {
             const statusClass = value <= threshold ? 'status-safe' : 'status-unsafe';
-            const statusText = value <= threshold ? 'Safe' : 'Unsafe';
+            const statusText = -value <= threshold ? 'Safe' : 'Unsafe';
 
             const cardHTML = `
                     <h3>${title}</h3>
@@ -204,7 +204,7 @@
 
                 // Populate cards with the latest data
                 populateCard('conductivity', 'Conductivity', conductivity[conductivity.length - 1].toFixed(2), 'µS/cm', 500);
-                populateCard('turbidity', 'Turbidity', turbidity[turbidity.length - 1].toFixed(2), 'NTU', 5);
+                populateCard('turbidity', 'Turbidity', turbidity[turbidity.length - 1].toFixed(2), 'Volts', -5);
 
                 // Plot the Conductivity chart
                 Plotly.react('conductivity-chart', [{
